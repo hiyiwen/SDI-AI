@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - sdiportal-website
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to registry
+      uses: docker/login-action@v2
+      with:
+        registry: https://sdiportalacr.azurecr.io/
+        username: ${{ secrets.AzureAppService_ContainerUsername_44855103c8794a7ba6ae0893448c5112 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_ebcb5e17c4764f66b60310a3bc589523 }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: sdiportalacr.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_44855103c8794a7ba6ae0893448c5112 }}/rag-webapp:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'sdiportal-website'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_8692be526ef34423a99b34097b565e05 }}
+        images: 'sdiportalacr.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_44855103c8794a7ba6ae0893448c5112 }}/rag-webapp:${{ github.sha }}'
